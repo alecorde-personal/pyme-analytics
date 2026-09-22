@@ -1,0 +1,206 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+}
+
+enum BusinessIndustry {
+  LIBRARY
+  KIOSK
+  HARDWARE
+  OTHER
+}
+
+enum SheetStatus {
+  PENDING
+  OK
+  ERROR
+}
+
+enum SyncStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum SubscriptionStatus {
+  FREE
+  ACTIVE
+  CANCELED
+  PAST_DUE
+}
+
+enum PaymentMethod {
+  CASH
+  DEBIT
+  CREDIT
+  TRANSFER
+  MERCADO_PAGO
+  OTHER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(OWNER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  businesses Business[]
+  sessions   Session[]
+  preferences NotificationPreference?
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model Business {
+  id        String            @id @default(cuid())
+  userId    String
+  name      String
+  industry  BusinessIndustry
+  address   String?
+  size      String?
+  plan      String            @default("free")
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sheetConnection  SheetConnection?
+  sales            Sale[]
+  syncLogs         SyncLog[]
+  subscriptions    Subscription[]
+  notificationPref NotificationPreference?
+
+  @@map("businesses")
+}
+
+model SheetConnection {
+  id               String      @id @default(cuid())
+  businessId       String      @unique
+  googleSheetId    String
+  sheetUrl         String
+  lastSyncedAt     DateTime?
+  lastModifiedTime DateTime?
+  status           SheetStatus @default(PENDING)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@map("sheet_connections")
+}
+
+model Sale {
+  id             String        @id @default(cuid())
+  businessId     String
+  saleDate       DateTime
+  product        String
+  category       String
+  quantity       Int
+  unitPrice      Float
+  paymentMethod  PaymentMethod?
+  unitCost       Float?
+  sourceRowNumber Int
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@map("sales")
+}
+
+model SyncLog {
+  id          String     @id @default(cuid())
+  businessId  String
+  startedAt   DateTime   @default(now())
+  finishedAt  DateTime?
+  rowsRead    Int        @default(0)
+  rowsValid   Int        @default(0)
+  rowsInvalid Int        @default(0)
+  status      SyncStatus @default(PENDING)
+  createdAt   DateTime   @default(now())
+
+  business Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  errors   SyncError[]
+
+  @@map("sync_logs")
+}
+
+model SyncError {
+  id        String   @id @default(cuid())
+  syncLogId String
+  rowNumber Int
+  column    String?
+  message   String
+  createdAt DateTime @default(now())
+
+  syncLog SyncLog @relation(fields: [syncLogId], references: [id], onDelete: Cascade)
+
+  @@map("sync_errors")
+}
+
+model IndustryTemplate {
+  id               String            @id @default(cuid())
+  industry         BusinessIndustry  @unique
+  templateSheetId  String?
+  columnConfig     Json
+  kpiConfig        Json
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@map("industry_templates")
+}
+
+model Subscription {
+  id               String             @id @default(cuid())
+  businessId       String
+  plan             String
+  status           SubscriptionStatus @default(FREE)
+  providerRef      String?
+  currentPeriodEnd DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model NotificationPreference {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  businessId     String   @unique
+  weeklySummary  Boolean  @default(true)
+  salesDropAlert Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
