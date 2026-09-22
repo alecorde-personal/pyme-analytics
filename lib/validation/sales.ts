@@ -24,6 +24,8 @@ export const PAYMENT_METHOD_VALUES = {
   Otro: 'OTHER',
 } as const;
 
+export type PaymentMethodLabel = keyof typeof PAYMENT_METHOD_VALUES;
+
 const VALID_CATEGORIES = [
   'Infantil',
   'Juvenil',
@@ -50,7 +52,7 @@ type ValidSaleRowResult = {
     category: string;
     quantity: number;
     unitPrice: number;
-    paymentMethod: string | null;
+    paymentMethod: PaymentMethodLabel | null;
     unitCost: number | null;
     sourceRowNumber: number;
   };
@@ -110,7 +112,7 @@ export function normalizeSaleRow(row: SalesRow): ValidSaleRowResult | InvalidSal
       category: row.categoria.trim(),
       quantity,
       unitPrice,
-      paymentMethod: row.medioDePago?.trim() as keyof typeof PAYMENT_METHOD_VALUES || null,
+      paymentMethod: row.medioDePago?.trim() as PaymentMethodLabel || null,
       unitCost: row.costoUnitario === undefined || row.costoUnitario === null || row.costoUnitario === '' ? null : Number(row.costoUnitario),
       sourceRowNumber: row.rowNumber,
     },
