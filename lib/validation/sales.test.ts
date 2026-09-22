@@ -37,7 +37,7 @@ describe('normalizeSaleRow', () => {
       expect(result.errors).toContainEqual({
         rowNumber: 12,
         column: 'Cantidad',
-        message: 'Debe ser un número mayor a 0.',
+        message: 'Debe ser un número entero mayor a 0.',
       });
     }
   });
